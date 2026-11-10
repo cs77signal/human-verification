@@ -49,7 +49,9 @@ export default function Home() {
 
       setOpen(true);
     } catch {
-      setStatus("Verification service unavailable. Please try again.");
+      setStatus(
+        "Verification service unavailable. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -109,7 +111,9 @@ export default function Home() {
             onClick={startVerification}
             disabled={loading}
           >
-            {loading ? "Preparing verification..." : "Verify with World ID"}
+            {loading
+              ? "Preparing verification..."
+              : "Verify with World ID"}
           </button>
 
           {status && (
@@ -140,7 +144,9 @@ export default function Home() {
             setStatus("Human verification successful.");
           }}
           onError={() => {
-            setStatus("Verification could not be completed. Please try again.");
+            setStatus(
+              "Verification could not be completed. Please try again."
+            );
           }}
         />
       )}

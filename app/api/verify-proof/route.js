@@ -7,12 +7,15 @@ const ACTION = "human-verification";
 
 export async function POST(request) {
   try {
-    const proof = await request.json();
+    const body = await request.json();
+
+    const { rp_id, idkitResponse } = body || {};
 
     if (
-      !proof ||
-      proof.action !== ACTION ||
-      !Array.isArray(proof.responses)
+      rp_id !== RP_ID ||
+      !idkitResponse ||
+      typeof idkitResponse !== "object" ||
+      idkitResponse.action !== ACTION
     ) {
       return NextResponse.json(
         { verified: false, error: "Invalid verification request" },
@@ -27,14 +30,18 @@ export async function POST(request) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(proof),
+        body: JSON.stringify(idkitResponse),
         cache: "no-store",
       }
     );
 
     const verification = await worldResponse.json();
 
-    if (!worldResponse.ok || verification?.success !== true) {
+    if (
+      !worldResponse.ok ||
+      verification?.success !== true ||
+      (verification.action && verification.action !== ACTION)
+    ) {
       return NextResponse.json(
         { verified: false, error: "Verification failed" },
         { status: 400 }
@@ -47,14 +54,14 @@ export async function POST(request) {
         (result) =>
           result?.success === true &&
           typeof result.nullifier === "string"
-      )?.nullifier ||
-      proof.responses.find(
-        (response) => typeof response.nullifier === "string"
       )?.nullifier;
 
-    if (!nullifier) {
+    if (
+      typeof nullifier !== "string" ||
+      nullifier.length === 0
+    ) {
       return NextResponse.json(
-        { verified: false, error: "Nullifier not found" },
+        { verified: false, error: "Verified nullifier unavailable" },
         { status: 400 }
       );
     }
@@ -83,7 +90,10 @@ export async function POST(request) {
 
   } catch {
     return NextResponse.json(
-      { verified: false, error: "Verification service unavailable" },
+      {
+        verified: false,
+        error: "Verification service unavailable",
+      },
       { status: 500 }
     );
   }

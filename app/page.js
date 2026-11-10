@@ -9,7 +9,7 @@ import {
 
 const APP_ID = "app_c5c2f54315be3096e7437cbbf634bf8d";
 const RP_ID = "rp_6e6a7b45f63d731d";
-const ACTION = "human-verification";
+const ACTION = "human-verification-test";
 
 export default function Home() {
   const [open, setOpen] = useState(false);

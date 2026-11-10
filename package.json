@@ -11,4 +11,7 @@
   "dependencies": {
     "@worldcoin/idkit": "4.6.0",
     "next": "16.4.6",
-    "rea
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

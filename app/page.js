@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import {
-  IDKitInviteCodeRequestWidget,
+  IDKitRequestWidget,
   proofOfHuman,
 } from "@worldcoin/idkit";
 
@@ -129,7 +129,7 @@ export default function Home() {
       </footer>
 
       {rpContext && (
-        <IDKitInviteCodeRequestWidget
+        <IDKitRequestWidget
           open={open}
           onOpenChange={setOpen}
           app_id={APP_ID}

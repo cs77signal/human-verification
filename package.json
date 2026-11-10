@@ -9,15 +9,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@worldcoin/idkit-core": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {
-    "typescript": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@worldcoin/idkit": "4.6.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

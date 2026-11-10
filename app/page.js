@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import {
-  IDKitRequestWidget,
+  IDKitInviteCodeRequestWidget,
   proofOfHuman,
 } from "@worldcoin/idkit";
 
@@ -48,7 +48,6 @@ export default function Home() {
       });
 
       setOpen(true);
-
     } catch {
       setStatus("Verification service unavailable. Please try again.");
     } finally {
@@ -62,7 +61,10 @@ export default function Home() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(result),
+      body: JSON.stringify({
+        rp_id: RP_ID,
+        idkitResponse: result,
+      }),
     });
 
     if (!response.ok) {
@@ -123,7 +125,7 @@ export default function Home() {
       </footer>
 
       {rpContext && (
-        <IDKitRequestWidget
+        <IDKitInviteCodeRequestWidget
           open={open}
           onOpenChange={setOpen}
           app_id={APP_ID}

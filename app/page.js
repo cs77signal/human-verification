@@ -143,10 +143,13 @@ export default function Home() {
           onSuccess={() => {
             setStatus("Human verification successful.");
           }}
-          onError={() => {
-            setStatus(
-              "Verification could not be completed. Please try again."
-            );
+          onError={(errorCode) => {
+            const code =
+              typeof errorCode === "string"
+                ? errorCode
+                : "Unknown error";
+
+            setStatus("Verification error: " + code);
           }}
         />
       )}

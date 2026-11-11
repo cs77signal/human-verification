@@ -74,7 +74,7 @@ export default function Home() {
   return (
     <main className="container compact">
       <section className="hero">
-        <p className="eyebrow">CS77 · WORLD ID</p>
+        <p className="eyebrow">⊕ CS77 • WORLD ID</p>
 
         <h1>
           Prove you are human. Keep your identity private.

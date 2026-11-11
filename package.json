@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@upstash/ratelimit": "2.2.0",
     "@upstash/redis": "1.41.0",
     "@worldcoin/idkit": "4.6.0",
     "next": "16.4.6",

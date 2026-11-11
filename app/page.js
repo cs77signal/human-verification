@@ -72,35 +72,17 @@ export default function Home() {
   }
 
   return (
-    <main className="container">
-      <header className="header">
-        <a href="/" className="brand">
-          ⊕ cs77signal
-        </a>
-        <span className="label">HUMAN VERIFICATION</span>
-      </header>
-
+    <main className="container compact">
       <section className="hero">
         <p className="eyebrow">CS77 · WORLD ID</p>
 
         <h1>
-          Prove you are human.
-          <br />
-          Keep your identity private.
+          Prove you are human. Keep your identity private.
         </h1>
-
-        <p className="description">
-          Verify that you are a unique human without
-          revealing your identity.
-        </p>
 
         <div className="verification">
           <p className="verification-title">
             HUMAN VERIFICATION
-          </p>
-
-          <p className="verification-description">
-            Complete your World ID verification.
           </p>
 
           <button
@@ -108,22 +90,14 @@ export default function Home() {
             onClick={startVerification}
             disabled={loading}
           >
-            {loading
-              ? "Preparing verification..."
-              : "Verify with World ID"}
+            {loading ? "Preparing..." : "Verify"}
           </button>
 
           {status && (
-            <p className="description">{status}</p>
+            <p className="status">{status}</p>
           )}
         </div>
       </section>
-
-      <footer className="footer">
-        <span>⊕ CS77</span>
-        <span>AI THINKS • CS77 EXECUTES</span>
-        <span>@cs77signal</span>
-      </footer>
 
       {rpContext && (
         <IDKitRequestWidget

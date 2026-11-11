@@ -21,7 +21,7 @@ export async function POST(request) {
     }
 
     const worldResponse = await fetch(
-      `https://developer.worldcoin.org/api/v4/verify/${RP_ID}`,
+      `https://developer.world.org/api/v4/verify/${RP_ID}`,
       {
         method: "POST",
         headers: {
@@ -37,7 +37,8 @@ export async function POST(request) {
     if (
       !worldResponse.ok ||
       verification?.success !== true ||
-      (verification.action && verification.action !== ACTION)
+      verification?.environment !== "production" ||
+      verification?.action !== ACTION
     ) {
       return NextResponse.json(
         { verified: false, error: "World ID verification failed" },

@@ -13,7 +13,7 @@ export async function POST() {
   }
 
   const signature = signRequest({
-    action: "human-verification-test",
+    action: "human-verification",
     signingKeyHex,
   });
 

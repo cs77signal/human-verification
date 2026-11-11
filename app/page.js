@@ -63,10 +63,7 @@ export default function Home() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        rp_id: RP_ID,
-        idkitResponse: result,
-      }),
+      body: JSON.stringify(result),
     });
 
     if (!response.ok) {
@@ -143,13 +140,12 @@ export default function Home() {
           onSuccess={() => {
             setStatus("Human verification successful.");
           }}
-          onError={(errorCode) => {
-            const code =
-              typeof errorCode === "string"
-                ? errorCode
-                : "Unknown error";
-
-            setStatus("Verification error: " + code);
+          onError={(errorCode, debugReport, reason) => {
+            setStatus(
+              "Verification error: " +
+              String(errorCode) +
+              (reason ? " — " + String(reason) : "")
+            );
           }}
         />
       )}

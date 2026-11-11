@@ -12,7 +12,8 @@ export async function POST(request) {
     if (
       !proof ||
       typeof proof !== "object" ||
-      proof.action !== ACTION
+      proof.action !== ACTION ||
+      (proof.environment && proof.environment !== "production")
     ) {
       return NextResponse.json(
         { verified: false, error: "Invalid verification request" },
@@ -37,8 +38,9 @@ export async function POST(request) {
     if (
       !worldResponse.ok ||
       verification?.success !== true ||
-      verification?.environment !== "production" ||
-      verification?.action !== ACTION
+      (verification.environment &&
+        verification.environment !== "production") ||
+      (verification.action && verification.action !== ACTION)
     ) {
       return NextResponse.json(
         { verified: false, error: "World ID verification failed" },

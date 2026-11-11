@@ -1,12 +1,55 @@
 
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import { Ratelimit } from "@upstash/ratelimit";
 
 const RP_ID = "rp_6e6a7b45f63d731d";
 const ACTION = "human-verification";
 
 export async function POST(request) {
   try {
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    });
+
+    const ip = request.headers
+      .get("x-forwarded-for")
+      ?.split(",")[0]
+      .trim();
+
+    if (!ip) {
+      return NextResponse.json(
+        { verified: false, error: "Request source unavailable" },
+        { status: 400 }
+      );
+    }
+
+    const ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "1 m"),
+      prefix: "cs77:verify-proof:ratelimit",
+    });
+
+    const { success, reset } = await ratelimit.limit(ip);
+
+    if (!success) {
+      const retryAfter = Math.max(
+        1,
+        Math.ceil((reset - Date.now()) / 1000)
+      );
+
+      return NextResponse.json(
+        { verified: false, error: "Too many requests. Try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfter),
+          },
+        }
+      );
+    }
+
     const proof = await request.json();
 
     if (
@@ -65,11 +108,6 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
 
     const key =
       `worldid:nullifier:${ACTION}:${nullifier.toLowerCase()}`;

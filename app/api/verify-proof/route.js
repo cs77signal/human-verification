@@ -5,6 +5,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 
 const RP_ID = "rp_6e6a7b45f63d731d";
 const ACTION = "human-verification";
+const MAX_BODY_SIZE = 65536;
 
 export async function POST(request) {
   try {
@@ -50,11 +51,76 @@ export async function POST(request) {
       );
     }
 
-    const proof = await request.json();
+    const contentLength = request.headers.get("content-length");
+
+    if (contentLength !== null) {
+      const declaredSize = Number(contentLength);
+
+      if (
+        !Number.isSafeInteger(declaredSize) ||
+        declaredSize < 0 ||
+        declaredSize > MAX_BODY_SIZE
+      ) {
+        return NextResponse.json(
+          { verified: false, error: "Request body too large" },
+          { status: 413 }
+        );
+      }
+    }
+
+    if (!request.body) {
+      return NextResponse.json(
+        { verified: false, error: "Missing request body" },
+        { status: 400 }
+      );
+    }
+
+    const reader = request.body.getReader();
+    const chunks = [];
+    let totalSize = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      totalSize += value.byteLength;
+
+      if (totalSize > MAX_BODY_SIZE) {
+        await reader.cancel();
+
+        return NextResponse.json(
+          { verified: false, error: "Request body too large" },
+          { status: 413 }
+        );
+      }
+
+      chunks.push(value);
+    }
+
+    const bodyBytes = new Uint8Array(totalSize);
+    let offset = 0;
+
+    for (const chunk of chunks) {
+      bodyBytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+
+    let proof;
+
+    try {
+      proof = JSON.parse(new TextDecoder().decode(bodyBytes));
+    } catch {
+      return NextResponse.json(
+        { verified: false, error: "Invalid JSON request" },
+        { status: 400 }
+      );
+    }
 
     if (
       !proof ||
       typeof proof !== "object" ||
+      Array.isArray(proof) ||
       proof.action !== ACTION ||
       (proof.environment && proof.environment !== "production")
     ) {

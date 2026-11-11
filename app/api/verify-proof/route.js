@@ -3,19 +3,16 @@ import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 
 const RP_ID = "rp_6e6a7b45f63d731d";
-const ACTION = "human-verification";
+const ACTION = "human-verification-test";
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-
-    const { rp_id, idkitResponse } = body || {};
+    const proof = await request.json();
 
     if (
-      rp_id !== RP_ID ||
-      !idkitResponse ||
-      typeof idkitResponse !== "object" ||
-      idkitResponse.action !== ACTION
+      !proof ||
+      typeof proof !== "object" ||
+      proof.action !== ACTION
     ) {
       return NextResponse.json(
         { verified: false, error: "Invalid verification request" },
@@ -24,13 +21,13 @@ export async function POST(request) {
     }
 
     const worldResponse = await fetch(
-      `https://developer.world.org/api/v4/verify/${RP_ID}`,
+      `https://developer.worldcoin.org/api/v4/verify/${RP_ID}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(idkitResponse),
+        body: JSON.stringify(proof),
         cache: "no-store",
       }
     );
@@ -43,7 +40,7 @@ export async function POST(request) {
       (verification.action && verification.action !== ACTION)
     ) {
       return NextResponse.json(
-        { verified: false, error: "Verification failed" },
+        { verified: false, error: "World ID verification failed" },
         { status: 400 }
       );
     }

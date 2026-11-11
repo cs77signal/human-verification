@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 
 const RP_ID = "rp_6e6a7b45f63d731d";
-const ACTION = "human-verification-test";
+const ACTION = "human-verification";
 
 export async function POST(request) {
   try {

@@ -12,10 +12,7 @@ const COUNTER_KEYS = {
   nullifierReplayed: "cs77:human-counter:nullifier-replayed",
 };
 
-const ALLOWED_EVENTS = [
-  "already_verified",
-  "nullifier_replayed",
-];
+const ALLOWED_EVENTS = ["nullifier_replayed"];
 
 const RECORD_EVENT_SCRIPT = `
 local stored = redis.call(
@@ -33,6 +30,7 @@ end
 
 redis.call("INCR", KEYS[2])
 redis.call("INCR", KEYS[3])
+redis.call("INCR", KEYS[4])
 
 return 1
 `;
@@ -142,11 +140,6 @@ export async function POST(request) {
       );
     }
 
-    const counterKey =
-      body.event === "already_verified"
-        ? COUNTER_KEYS.alreadyVerified
-        : COUNTER_KEYS.nullifierReplayed;
-
     const deduplicationKey =
       `cs77:widget-event:reported:${body.eventId}`;
 
@@ -155,7 +148,8 @@ export async function POST(request) {
       [
         deduplicationKey,
         COUNTER_KEYS.blockedByWorldId,
-        counterKey,
+        COUNTER_KEYS.nullifierReplayed,
+        COUNTER_KEYS.alreadyVerified,
       ],
       [String(EVENT_TTL_SECONDS)]
     );

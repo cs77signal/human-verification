@@ -114,18 +114,12 @@ export default function Home() {
           onSuccess={() => {
             setStatus("Human verification successful.");
           }}
-          onError={(errorCode, debugReport, reason) => {
-            const errorMessage =
-              "WORLD ID ERROR: " +
-              String(errorCode) +
-              (reason ? " — " + String(reason) : "");
+          onError={(errorCode) => {
+            console.error("CS77 IDKit error:", errorCode);
 
-            console.error("CS77 IDKit:", {
-              errorCode: String(errorCode),
-              reason: reason ? String(reason) : null,
-            });
-
-            setStatus(errorMessage);
+            setStatus(
+              "WORLD ID ERROR: " + String(errorCode)
+            );
           }}
         />
       )}

@@ -7,12 +7,45 @@ const RP_ID = "rp_6e6a7b45f63d731d";
 const ACTION = "human-verification";
 const MAX_BODY_SIZE = 65536;
 
+const COUNTER_KEYS = {
+  uniqueHumans: "cs77:human-counter:unique-humans",
+  verificationRequests: "cs77:human-counter:verification-requests",
+  successfulVerifications:
+    "cs77:human-counter:successful-verifications",
+  failedAttempts: "cs77:human-counter:failed-attempts",
+};
+
+async function incrementSafely(redis, key) {
+  try {
+    await redis.incr(key);
+  } catch {
+    // A falha de uma métrica não deve interromper a verificação.
+  }
+}
+
+const ACCEPT_PROOF_SCRIPT = `
+local stored = redis.call("SET", KEYS[1], "1", "NX")
+
+if stored then
+  redis.call("INCR", KEYS[2])
+  redis.call("INCR", KEYS[3])
+  return 1
+end
+
+return 0
+`;
+
 export async function POST(request) {
   try {
     const redis = new Redis({
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
     });
+
+    await incrementSafely(
+      redis,
+      COUNTER_KEYS.verificationRequests
+    );
 
     const ip = request.headers
       .get("x-forwarded-for")
@@ -151,6 +184,11 @@ export async function POST(request) {
         verification.environment !== "production") ||
       (verification.action && verification.action !== ACTION)
     ) {
+      await incrementSafely(
+        redis,
+        COUNTER_KEYS.failedAttempts
+      );
+
       return NextResponse.json(
         { verified: false, error: "World ID verification failed" },
         { status: 400 }
@@ -178,9 +216,22 @@ export async function POST(request) {
     const key =
       `worldid:nullifier:${ACTION}:${nullifier.toLowerCase()}`;
 
-    const stored = await redis.set(key, "1", { nx: true });
+    const accepted = await redis.eval(
+      ACCEPT_PROOF_SCRIPT,
+      [
+        key,
+        COUNTER_KEYS.uniqueHumans,
+        COUNTER_KEYS.successfulVerifications,
+      ],
+      []
+    );
 
-    if (stored !== "OK") {
+    if (Number(accepted) !== 1) {
+      await incrementSafely(
+        redis,
+        COUNTER_KEYS.failedAttempts
+      );
+
       return NextResponse.json(
         {
           verified: false,

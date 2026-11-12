@@ -269,7 +269,16 @@ export default function Embed() {
                   letterSpacing: "0.6px",
                 }}
               >
-                {label}
+                {label === "BLOCKED BY World ID" ? (
+                  <>
+                    BLOCKED BY{" "}
+                    <span style={{ color: "#f5f5f5" }}>
+                      World ID
+                    </span>
+                  </>
+                ) : (
+                  label
+                )}
               </p>
 
               <strong

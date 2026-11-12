@@ -1,4 +1,12 @@
 
+@font-face {
+  font-family: "World Pro";
+  src: url("/WorldProMVP.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }

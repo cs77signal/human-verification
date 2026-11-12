@@ -148,7 +148,7 @@ export default function Embed() {
     ["VERIFICATION REQUESTS", stats.verificationRequests],
     ["SUCCESSFUL VERIFICATIONS", stats.successfulVerifications],
     ["FAILED ATTEMPTS", stats.failedAttempts],
-    ["BLOCKED BY WORLD ID", stats.blockedByWorldId],
+    ["BLOCKED BY World ID", stats.blockedByWorldId],
     ["ALREADY VERIFIED", stats.alreadyVerified],
     ["NULLIFIER REPLAYED", stats.nullifierReplayed],
   ];
@@ -156,7 +156,7 @@ export default function Embed() {
   return (
     <main className="container compact">
       <section className="hero">
-        <p className="eyebrow">⊕ CS77 • WORLD ID</p>
+        <p className="eyebrow">⊕ CS77 • World ID</p>
 
         <h1>
           Prove you are human. Keep your identity private.
@@ -291,7 +291,7 @@ export default function Embed() {
             }
 
             setStatus(
-              "WORLD ID ERROR: " + String(errorCode)
+              "World ID ERROR: " + String(errorCode)
             );
           }}
         />

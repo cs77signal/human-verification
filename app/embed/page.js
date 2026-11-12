@@ -156,14 +156,30 @@ export default function Embed() {
   return (
     <main className="container compact">
       <section className="hero">
-        <p className="eyebrow">⊕ CS77 • World ID</p>
+        <p
+          className="eyebrow"
+          style={{
+            fontFamily: '"World Pro", Inter, sans-serif',
+          }}
+        >
+          ⊕ CS77 • World ID
+        </p>
 
-        <h1>
+        <h1
+          style={{
+            fontFamily: '"World Pro", Inter, sans-serif',
+          }}
+        >
           Prove you are human. Keep your identity private.
         </h1>
 
         <div className="verification">
-          <p className="verification-title">
+          <p
+            className="verification-title"
+            style={{
+              fontFamily: '"World Pro", Inter, sans-serif',
+            }}
+          >
             HUMAN VERIFICATION
           </p>
 
@@ -176,7 +192,14 @@ export default function Embed() {
           </button>
 
           {status && (
-            <p className="status">{status}</p>
+            <p
+              className="status"
+              style={{
+                fontFamily: '"World Pro", Inter, sans-serif',
+              }}
+            >
+              {status}
+            </p>
           )}
         </div>
       </section>
@@ -240,7 +263,7 @@ export default function Embed() {
                   margin: "0 0 6px",
                   color: "#00a6a6",
                   fontFamily: "monospace",
-                  fontSize: "9px",
+                  fontSize: "11px",
                   fontWeight: "bold",
                   lineHeight: 1.4,
                   letterSpacing: "0.6px",
@@ -254,7 +277,7 @@ export default function Embed() {
                   display: "block",
                   color: "#f5f5f5",
                   fontFamily: "monospace",
-                  fontSize: "21px",
+                  fontSize: "27px",
                   fontWeight: 600,
                   lineHeight: 1.2,
                   overflowWrap: "anywhere",

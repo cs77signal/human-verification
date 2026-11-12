@@ -71,6 +71,26 @@ export default function Home() {
     }
   }
 
+  async function reportWidgetEvent(event) {
+    try {
+      await fetch("/api/report-widget-event", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          event,
+          eventId: crypto.randomUUID(),
+        }),
+      });
+    } catch (error) {
+      console.error(
+        "CS77 widget event reporting failed:",
+        error
+      );
+    }
+  }
+
   return (
     <main className="container compact">
       <section className="hero">
@@ -116,6 +136,10 @@ export default function Home() {
           }}
           onError={(errorCode) => {
             console.error("CS77 IDKit error:", errorCode);
+
+            if (errorCode === "nullifier_replayed") {
+              void reportWidgetEvent("nullifier_replayed");
+            }
 
             setStatus(
               "WORLD ID ERROR: " + String(errorCode)

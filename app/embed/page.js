@@ -162,7 +162,7 @@ export default function Embed() {
             fontFamily: '"World Pro", Inter, sans-serif',
           }}
         >
-          ⊕ CS77 • World ID
+          ⊕{"\u00A0\u00A0"}CS77{"\u00A0\u00A0"}•{"\u00A0\u00A0"}World ID
         </p>
 
         <h1
@@ -272,7 +272,12 @@ export default function Embed() {
                 {label === "BLOCKED BY World ID" ? (
                   <>
                     BLOCKED BY{" "}
-                    <span style={{ color: "#f5f5f5" }}>
+                    <span
+                      style={{
+                        color: "#f5f5f5",
+                        fontFamily: '"World Pro", Inter, sans-serif',
+                      }}
+                    >
                       World ID
                     </span>
                   </>
@@ -286,7 +291,7 @@ export default function Embed() {
                   display: "block",
                   color: "#f5f5f5",
                   fontFamily: "monospace",
-                  fontSize: "27px",
+                  fontSize: "24px",
                   fontWeight: 600,
                   lineHeight: 1.2,
                   overflowWrap: "anywhere",

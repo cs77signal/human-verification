@@ -126,7 +126,8 @@ export default function Home() {
             });
 
             setStatus(errorMessage);
-          }}        />
+          }}
+        />
       )}
     </main>
   );

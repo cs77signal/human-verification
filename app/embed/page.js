@@ -148,9 +148,7 @@ export default function Embed() {
     ["VERIFICATION REQUESTS", stats.verificationRequests],
     ["SUCCESSFUL VERIFICATIONS", stats.successfulVerifications],
     ["FAILED ATTEMPTS", stats.failedAttempts],
-    ["BLOCKED BY World ID", stats.blockedByWorldId],
     ["ALREADY VERIFIED", stats.alreadyVerified],
-    ["NULLIFIER REPLAYED", stats.nullifierReplayed],
   ];
 
   return (
@@ -269,21 +267,7 @@ export default function Embed() {
                   letterSpacing: "0.6px",
                 }}
               >
-                {label === "BLOCKED BY World ID" ? (
-                  <>
-                    BLOCKED BY{" "}
-                    <span
-                      style={{
-                        color: "#f5f5f5",
-                        fontFamily: '"World Pro", Inter, sans-serif',
-                      }}
-                    >
-                      World ID
-                    </span>
-                  </>
-                ) : (
-                  label
-                )}
+                {label}
               </p>
 
               <strong

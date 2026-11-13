@@ -145,9 +145,6 @@ export default function Embed() {
 
   const metrics = [
     ["UNIQUE HUMANS", stats.uniqueHumans],
-    ["VERIFICATION REQUESTS", stats.verificationRequests],
-    ["SUCCESSFUL VERIFICATIONS", stats.successfulVerifications],
-    ["FAILED ATTEMPTS", stats.failedAttempts],
     ["ALREADY VERIFIED", stats.alreadyVerified],
   ];
 

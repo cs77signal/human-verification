@@ -1,11 +1,13 @@
 
 import { NextResponse } from "next/server";
+import { createHmac, randomBytes } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
 const RP_ID = "rp_6e6a7b45f63d731d";
 const ACTION = "human-verification";
 const MAX_BODY_SIZE = 65536;
+const ACCESS_CODE_TTL = 60;
 
 const COUNTER_KEYS = {
   uniqueHumans: "cs77:human-counter:unique-humans",
@@ -15,28 +17,77 @@ const COUNTER_KEYS = {
   failedAttempts: "cs77:human-counter:failed-attempts",
 };
 
+const ACCEPT_PROOF_SCRIPT = `
+local stored = redis.call("SET", KEYS[1], "1", "NX")
+
+if not stored then
+  return 0
+end
+
+local codeStored = redis.call(
+  "SET",
+  KEYS[4],
+  "1",
+  "NX",
+  "EX",
+  ARGV[1]
+)
+
+if not codeStored then
+  redis.call("DEL", KEYS[1])
+  return -1
+end
+
+redis.call("INCR", KEYS[2])
+redis.call("INCR", KEYS[3])
+
+return 1
+`;
+
 async function incrementSafely(redis, key) {
   try {
     await redis.incr(key);
   } catch {
-    // A falha de uma métrica não deve interromper a verificação.
+    // Uma falha de métricas não deve interromper a verificação.
   }
 }
 
-const ACCEPT_PROOF_SCRIPT = `
-local stored = redis.call("SET", KEYS[1], "1", "NX")
+function createDigest(secret, value) {
+  return createHmac("sha256", secret)
+    .update(value)
+    .digest("hex");
+}
 
-if stored then
-  redis.call("INCR", KEYS[2])
-  redis.call("INCR", KEYS[3])
-  return 1
-end
-
-return 0
-`;
+function errorResponse(message, status, extra = {}) {
+  return NextResponse.json(
+    {
+      verified: false,
+      error: message,
+      ...extra,
+    },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+      },
+    }
+  );
+}
 
 export async function POST(request) {
   try {
+    const sessionSecret = process.env.SESSION_SECRET;
+
+    if (
+      typeof sessionSecret !== "string" ||
+      !/^[a-fA-F0-9]{64}$/.test(sessionSecret)
+    ) {
+      return errorResponse(
+        "Verification service configuration error",
+        500
+      );
+    }
+
     const redis = new Redis({
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
@@ -53,9 +104,9 @@ export async function POST(request) {
       .trim();
 
     if (!ip) {
-      return NextResponse.json(
-        { verified: false, error: "Request source unavailable" },
-        { status: 400 }
+      return errorResponse(
+        "Request source unavailable",
+        400
       );
     }
 
@@ -73,14 +124,10 @@ export async function POST(request) {
         Math.ceil((reset - Date.now()) / 1000)
       );
 
-      return NextResponse.json(
-        { verified: false, error: "Too many requests. Try again later." },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": String(retryAfter),
-          },
-        }
+      return errorResponse(
+        "Too many requests. Try again later.",
+        429,
+        { retryAfter }
       );
     }
 
@@ -94,17 +141,17 @@ export async function POST(request) {
         declaredSize < 0 ||
         declaredSize > MAX_BODY_SIZE
       ) {
-        return NextResponse.json(
-          { verified: false, error: "Request body too large" },
-          { status: 413 }
+        return errorResponse(
+          "Request body too large",
+          413
         );
       }
     }
 
     if (!request.body) {
-      return NextResponse.json(
-        { verified: false, error: "Missing request body" },
-        { status: 400 }
+      return errorResponse(
+        "Missing request body",
+        400
       );
     }
 
@@ -122,9 +169,9 @@ export async function POST(request) {
       if (totalSize > MAX_BODY_SIZE) {
         await reader.cancel();
 
-        return NextResponse.json(
-          { verified: false, error: "Request body too large" },
-          { status: 413 }
+        return errorResponse(
+          "Request body too large",
+          413
         );
       }
 
@@ -142,11 +189,13 @@ export async function POST(request) {
     let proof;
 
     try {
-      proof = JSON.parse(new TextDecoder().decode(bodyBytes));
+      proof = JSON.parse(
+        new TextDecoder().decode(bodyBytes)
+      );
     } catch {
-      return NextResponse.json(
-        { verified: false, error: "Invalid JSON request" },
-        { status: 400 }
+      return errorResponse(
+        "Invalid JSON request",
+        400
       );
     }
 
@@ -155,11 +204,12 @@ export async function POST(request) {
       typeof proof !== "object" ||
       Array.isArray(proof) ||
       proof.action !== ACTION ||
-      (proof.environment && proof.environment !== "production")
+      (proof.environment &&
+        proof.environment !== "production")
     ) {
-      return NextResponse.json(
-        { verified: false, error: "Invalid verification request" },
-        { status: 400 }
+      return errorResponse(
+        "Invalid verification request",
+        400
       );
     }
 
@@ -175,23 +225,30 @@ export async function POST(request) {
       }
     );
 
-    const verification = await worldResponse.json();
+    let verification;
+
+    try {
+      verification = await worldResponse.json();
+    } catch {
+      verification = null;
+    }
 
     if (
       !worldResponse.ok ||
       verification?.success !== true ||
       (verification.environment &&
         verification.environment !== "production") ||
-      (verification.action && verification.action !== ACTION)
+      (verification.action &&
+        verification.action !== ACTION)
     ) {
       await incrementSafely(
         redis,
         COUNTER_KEYS.failedAttempts
       );
 
-      return NextResponse.json(
-        { verified: false, error: "World ID verification failed" },
-        { status: 400 }
+      return errorResponse(
+        "World ID verification failed",
+        400
       );
     }
 
@@ -207,49 +264,77 @@ export async function POST(request) {
       typeof nullifier !== "string" ||
       nullifier.length === 0
     ) {
-      return NextResponse.json(
-        { verified: false, error: "Verified nullifier unavailable" },
-        { status: 400 }
+      return errorResponse(
+        "Verified nullifier unavailable",
+        400
       );
     }
 
-    const key =
-      `worldid:nullifier:${ACTION}:${nullifier.toLowerCase()}`;
+    const nullifierDigest = createDigest(
+      sessionSecret,
+      `nullifier:${ACTION}:${nullifier.toLowerCase()}`
+    );
+
+    const exchangeCode = randomBytes(32).toString("base64url");
+
+    const exchangeCodeDigest = createDigest(
+      sessionSecret,
+      `access-code:${exchangeCode}`
+    );
+
+    const nullifierKey =
+      `cs77:worldid:nullifier:${nullifierDigest}`;
+
+    const accessCodeKey =
+      `cs77:access-code:${exchangeCodeDigest}`;
 
     const accepted = await redis.eval(
       ACCEPT_PROOF_SCRIPT,
       [
-        key,
+        nullifierKey,
         COUNTER_KEYS.uniqueHumans,
         COUNTER_KEYS.successfulVerifications,
+        accessCodeKey,
       ],
-      []
+      [String(ACCESS_CODE_TTL)]
     );
 
     if (Number(accepted) !== 1) {
-      await incrementSafely(
-        redis,
-        COUNTER_KEYS.failedAttempts
-      );
+      if (Number(accepted) === 0) {
+        await incrementSafely(
+          redis,
+          COUNTER_KEYS.failedAttempts
+        );
 
-      return NextResponse.json(
-        {
-          verified: false,
-          error: "This proof has already been used",
-        },
-        { status: 409 }
+        return errorResponse(
+          "This proof has already been used",
+          409
+        );
+      }
+
+      return errorResponse(
+        "Unable to create access code",
+        500
       );
     }
 
-    return NextResponse.json({ verified: true });
-
-  } catch {
     return NextResponse.json(
       {
-        verified: false,
-        error: "Verification service unavailable",
+        verified: true,
+        exchangeCode,
+        expiresIn: ACCESS_CODE_TTL,
       },
-      { status: 500 }
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+
+  } catch {
+    return errorResponse(
+      "Verification service unavailable",
+      500
     );
   }
 }

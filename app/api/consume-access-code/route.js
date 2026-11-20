@@ -14,6 +14,14 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 });
 
+const ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(60, "1 m"),
+  prefix: "cs77:consume-access-code:service-ratelimit",
+});
+
+const SERVICE_RATE_LIMIT_KEY = "cs77-human-interface";
+
 const CONSUME_CODE_SCRIPT = `
   local value = redis.call("GET", KEYS[1])
 
@@ -25,10 +33,16 @@ const CONSUME_CODE_SCRIPT = `
   return 1
 `;
 
-function errorResponse(message, status) {
+function errorResponse(message, status, headers = {}) {
   return NextResponse.json(
     { valid: false, error: message },
-    { status }
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+        ...headers,
+      },
+    }
   );
 }
 
@@ -130,12 +144,15 @@ export async function POST(request) {
       return errorResponse("Server configuration error", 500);
     }
 
-    const contentLengthHeader = request.headers.get("content-length");
+    const contentLengthHeader =
+      request.headers.get("content-length");
 
     if (contentLengthHeader !== null) {
-      const contentLength = Number(contentLengthHeader);
+      if (!/^\d+$/.test(contentLengthHeader)) {
+        return errorResponse("Invalid content length", 400);
+      }
 
-      if (contentLength > MAX_BODY_SIZE) {
+      if (Number(contentLengthHeader) > MAX_BODY_SIZE) {
         return errorResponse("Request body too large", 413);
       }
     }
@@ -173,37 +190,6 @@ export async function POST(request) {
       !/^[A-Za-z0-9_-]{43}$/.test(exchangeCode)
     ) {
       return errorResponse("Invalid access code", 400);
-    }
-
-    const ip = request.headers
-      .get("x-forwarded-for")
-      ?.split(",")[0]
-      .trim();
-
-    if (!ip) {
-      return errorResponse("Request source unavailable", 400);
-    }
-
-    const ratelimit = new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(10, "1 m"),
-      prefix: "cs77:consume-access-code:ratelimit",
-    });
-
-    const { success, reset } = await ratelimit.limit(ip);
-
-    if (!success) {
-      return NextResponse.json(
-        {
-          valid: false,
-          error: "Too many requests",
-          retryAfter: Math.max(
-            1,
-            Math.ceil((reset - Date.now()) / 1000)
-          ),
-        },
-        { status: 429 }
-      );
     }
 
     const timestamp = request.headers.get("x-cs77-timestamp");
@@ -252,6 +238,26 @@ export async function POST(request) {
 
     if (nonceResult !== "OK") {
       return errorResponse("Request already used", 409);
+    }
+
+    const {
+      success,
+      reset,
+    } = await ratelimit.limit(SERVICE_RATE_LIMIT_KEY);
+
+    if (!success) {
+      const retryAfter = Math.max(
+        1,
+        Math.ceil((reset - Date.now()) / 1000)
+      );
+
+      return errorResponse(
+        "Too many requests",
+        429,
+        {
+          "Retry-After": String(retryAfter),
+        }
+      );
     }
 
     const codeDigest = createDigest(

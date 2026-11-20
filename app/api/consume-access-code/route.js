@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
+export const runtime = "nodejs";
+
 const MAX_BODY_SIZE = 4096;
 const TIMESTAMP_TOLERANCE_SECONDS = 300;
 const NONCE_TTL_SECONDS = 300;
@@ -52,6 +54,68 @@ function safeCompareHex(a, b) {
   );
 }
 
+async function readLimitedBody(request) {
+  if (!request.body) {
+    return {
+      rawBody: null,
+      tooLarge: false,
+      invalidEncoding: false,
+    };
+  }
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.byteLength;
+
+      if (totalBytes > MAX_BODY_SIZE) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The request stream may already be closed.
+        }
+
+        return {
+          rawBody: null,
+          tooLarge: true,
+          invalidEncoding: false,
+        };
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+
+    try {
+      const rawBody = new TextDecoder("utf-8", {
+        fatal: true,
+      }).decode(Buffer.concat(chunks, totalBytes));
+
+      return {
+        rawBody,
+        tooLarge: false,
+        invalidEncoding: false,
+      };
+    } catch {
+      return {
+        rawBody: null,
+        tooLarge: false,
+        invalidEncoding: true,
+      };
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export async function POST(request) {
   try {
     const serviceSecret = process.env.CS77_SERVICE_SECRET;
@@ -66,20 +130,31 @@ export async function POST(request) {
       return errorResponse("Server configuration error", 500);
     }
 
-    const contentLength = Number(
-      request.headers.get("content-length") || 0
-    );
+    const contentLengthHeader = request.headers.get("content-length");
 
-    if (contentLength > MAX_BODY_SIZE) {
+    if (contentLengthHeader !== null) {
+      const contentLength = Number(contentLengthHeader);
+
+      if (contentLength > MAX_BODY_SIZE) {
+        return errorResponse("Request body too large", 413);
+      }
+    }
+
+    const {
+      rawBody,
+      tooLarge,
+      invalidEncoding,
+    } = await readLimitedBody(request);
+
+    if (tooLarge) {
       return errorResponse("Request body too large", 413);
     }
 
-    const rawBody = await request.text();
+    if (invalidEncoding) {
+      return errorResponse("Invalid request encoding", 400);
+    }
 
-    if (
-      !rawBody ||
-      Buffer.byteLength(rawBody, "utf8") > MAX_BODY_SIZE
-    ) {
+    if (!rawBody) {
       return errorResponse("Invalid request body", 400);
     }
 
@@ -193,12 +268,20 @@ export async function POST(request) {
     );
 
     if (Number(consumed) !== 1) {
-      return errorResponse("Access code invalid or already used", 401);
+      return errorResponse(
+        "Access code invalid or already used",
+        401
+      );
     }
 
-    return NextResponse.json({
-      valid: true,
-    });
+    return NextResponse.json(
+      { valid: true },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   } catch {
     return errorResponse("Internal server error", 500);
   }
